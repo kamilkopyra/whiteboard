@@ -4,6 +4,8 @@ Współdzielona tablica do korepetycji online, hostowana na własnym komputerze.
 
 Jeden plik Pythona (aiohttp + SQLite), bez zewnętrznych usług. Publiczny adres zapewnia darmowy tunel Cloudflare.
 
+![Lekcja o funkcji kwadratowej na układzie współrzędnych; uczennica Ania zakreśla wierzchołek na żywo](docs/tablica.png)
+
 ## Funkcje
 
 - obsługa rysika z odrzucaniem dłoni, gesty dotykowe, mysz
@@ -11,6 +13,13 @@ Jeden plik Pythona (aiohttp + SQLite), bez zewnętrznych usług. Publiczny adres
 - tła: kratka, układ współrzędnych, linie, gładkie
 - eksport strony do PNG
 - dostęp przez link z losowym kluczem; nowy link unieważnia poprzedni
+- jasny motyw „zeszyt” i ciemny „tablica kredowa”
+
+| Udostępnianie linkiem | Lista tablic |
+|---|---|
+| ![Okno udostępniania: rysowanie, tylko podgląd albo wyłączony link](docs/udostepnianie.png) | ![Lista tablic nauczyciela z podziałem na uczniów](docs/lista-tablic.png) |
+
+![Ta sama lekcja w ciemnym motywie tablicy kredowej](docs/tablica-ciemna.png)
 
 ## Uruchomienie
 
