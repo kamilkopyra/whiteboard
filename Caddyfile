@@ -1,0 +1,4 @@
+# Zamień na swoją domenę (jej rekord A musi wskazywać na ten serwer).
+tablica.example.com {
+	reverse_proxy tablica:8080
+}

@@ -1,0 +1,23 @@
+# Tablica + Caddy (automatyczny HTTPS). Ustaw swoją domenę w pliku Caddyfile, potem: docker compose up -d
+services:
+  tablica:
+    build: .
+    restart: unless-stopped
+    volumes:
+      - ./data:/data
+    environment:
+      REGISTRATION: first     # first | open | closed
+      TRUST_PROXY: "1"        # ruch przychodzi przez Caddy z innego kontenera
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on:
+      - tablica
+volumes:
+  caddy_data:

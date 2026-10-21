@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tablica do korepetycji</title>
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/fonts/fonts.css?v=1">
+<link rel="stylesheet" href="/static/app.css?v=2">
+<script src="/static/common.js?v=2"></script>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/"><span class="mark" aria-hidden="true"></span>Tablica</a>
+  <div class="spacer"></div>
+  <span class="who" id="who" hidden></span>
+  <button class="btn small ghost" id="logoutBtn" hidden>Wyloguj</button>
+</header>
+
+<main class="wrap">
+  <section id="welcome" class="welcome" hidden>
+    <div>
+      <p class="eyebrow">Korepetycje online</p>
+      <h1>Jedna tablica, <em>dwie osoby</em>, zero instalowania.</h1>
+      <p class="lead">Załóż konto, utwórz tablicę na lekcję i wyślij uczniowi link. Uczeń nie potrzebuje konta, otwiera link i od razu rysuje razem z tobą.</p>
+      <ul class="points">
+        <li>Kratka, linie albo układ współrzędnych z podziałką.</li>
+        <li>Pióro, zakreślacz, odcinki, wektory, okręgi i tekst.</li>
+        <li>Zdjęcie zadania z podręcznika wklejasz skrótem Ctrl+V.</li>
+        <li>Kilka tablic i stron, wszystko zapisuje się samo.</li>
+      </ul>
+    </div>
+    <div class="sheet panel">
+      <div class="tabs" role="tablist">
+        <button role="tab" id="tabLogin" aria-selected="true">Zaloguj się</button>
+        <button role="tab" id="tabRegister" aria-selected="false">Załóż konto</button>
+      </div>
+      <form id="loginForm" novalidate>
+        <div class="field"><label for="loginEmail">E-mail</label><input class="input" id="loginEmail" type="email" autocomplete="email" required></div>
+        <div class="field"><label for="loginPass">Hasło</label><input class="input" id="loginPass" type="password" autocomplete="current-password" required></div>
+        <p class="error" id="loginErr" role="alert"></p>
+        <button class="btn primary" type="submit">Zaloguj się</button>
+      </form>
+      <form id="registerForm" novalidate hidden>
+        <div class="field"><label for="regName">Imię widoczne dla uczniów</label><input class="input" id="regName" autocomplete="name" maxlength="40" required></div>
+        <div class="field"><label for="regEmail">E-mail</label><input class="input" id="regEmail" type="email" autocomplete="email" required></div>
+        <div class="field"><label for="regPass">Hasło (min. 8 znaków)</label><input class="input" id="regPass" type="password" autocomplete="new-password" minlength="8" required></div>
+        <p class="error" id="regErr" role="alert"></p>
+        <button class="btn primary" type="submit">Załóż konto</button>
+      </form>
+      <p class="note" id="authNote">Konto zakłada tylko nauczyciel. Uczniowie wchodzą przez link.</p>
+    </div>
+  </section>
+
+  <section id="dash" hidden>
+    <div class="head">
+      <div><p class="eyebrow">Twoje tablice</p><h1 id="hello">Tablice</h1></div>
+      <form class="newboard" id="newForm">
+        <input class="input" id="newTitle" maxlength="80" placeholder="np. Ania – funkcja kwadratowa" aria-label="Nazwa nowej tablicy">
+        <button class="btn primary" type="submit">Nowa tablica</button>
+      </form>
+    </div>
+    <div class="grid" id="mine"></div>
+    <div class="section" id="sharedSec" hidden>
+      <h2>Udostępnione tobie</h2>
+      <div class="grid" id="shared"></div>
+    </div>
+  </section>
+</main>
+<script src="/static/app.js?v=3"></script>
+</body>
+</html>

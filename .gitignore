@@ -1,0 +1,7 @@
+# user data: accounts, boards, uploaded images
+data/
+# local Python environment
+.venv/
+__pycache__/
+*.pyc
+.env
