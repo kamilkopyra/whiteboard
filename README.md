@@ -18,7 +18,7 @@ Wymagany Python 3 w `PATH`.
 
 ```sh
 # Windows
-start.bat
+./start.bat
 
 # macOS / Linux
 ./start.sh
@@ -43,8 +43,7 @@ Na macOS `cloudflared` instalowany jest przez [Homebrew](https://brew.sh).
 ## Polecenia
 
 ```
-start.bat <polecenie>    # Windows
-./start.sh <polecenie>   # macOS / Linux
+./start.bat <polecenie>    
 ```
 
 | Polecenie | Opis |
