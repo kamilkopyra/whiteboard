@@ -1,72 +1,94 @@
 # Tablica
 
-Wspólna tablica do korepetycji online. Ty i uczeń piszecie na niej jednocześnie, a uczeń nie musi zakładać konta, wystarczy mu link.
+Współdzielona tablica do korepetycji online, hostowana na własnym komputerze. Wiele osób rysuje na niej jednocześnie, uczeń wchodzi przez link bez zakładania konta.
 
-## Jak uruchomić (Windows)
+Jeden plik Pythona (aiohttp + SQLite), bez zewnętrznych usług. Publiczny adres zapewnia darmowy tunel Cloudflare.
 
-1. Zainstaluj Pythona ze strony [python.org/downloads](https://www.python.org/downloads/). W instalatorze **zaznacz „Add python.exe to PATH”**.
-2. Na tej stronie kliknij zielony przycisk **Code**, a potem **Download ZIP**. Rozpakuj pobrany plik.
-3. W rozpakowanym folderze kliknij dwa razy **`start.bat`**. Jeśli wolisz PowerShell, wpisz `.\start.bat`, z kropką i ukośnikiem na początku.
-   Jeśli Windows pokaże okno „System Windows ochronił komputer”, kliknij **Więcej informacji**, a potem **Uruchom mimo to**.
-4. Za pierwszym razem przygotowanie potrwa około minuty. Potem sama otworzy się przeglądarka z twoją tablicą. **Załóż konto.**
-5. Na tablicy kliknij **Udostępnij**, potem **Kopiuj**, i wyślij link uczniowi.
+## Funkcje
 
-**Okno, które się otworzyło, zostaw włączone, dopóki trwa lekcja.** Zamknięcie okna wyłącza tablicę, ale twoje rysunki zostają zapisane. Przy następnym uruchomieniu adres tablicy będzie inny, więc wyślij uczniowi nowy link.
+- obsługa rysika z odrzucaniem dłoni, gesty dotykowe, mysz
+- tekst z klawiatury, wklejanie i przeciąganie obrazów
+- tła: kratka, układ współrzędnych, linie, gładkie
+- eksport strony do PNG
+- dostęp przez link z losowym kluczem; nowy link unieważnia poprzedni
 
-**Mac:** zainstaluj [Homebrew](https://brew.sh), a w Terminalu w folderze tablicy wpisz `./start.sh`.
+## Uruchomienie
 
-## Jak się pisze
+Wymagany Python 3 w `PATH`.
 
-- **Rysik (iPad, tablet):** po prostu piszesz. Dłoń oparta o ekran nie rysuje. Dwa szybkie stuknięcia palcem przełączają na gumkę i z powrotem.
-- **Palec albo myszka:** piszesz jednym palcem albo myszką, a dwoma palcami przesuwasz i przybliżasz widok.
-- **Tekst z klawiatury:** narzędzie **T**, kliknij w tablicę i pisz. Enter zatwierdza.
-- **Zdjęcie zadania:** wklej je (Ctrl+V) albo przeciągnij plik na tablicę.
-- **Tło:** w menu **⋯** wybierasz kratkę, układ współrzędnych, linie albo gładkie tło. Tam też zapiszesz stronę jako obraz PNG.
+```sh
+# Windows
+start.bat
 
-## Gdy coś nie działa
-
-- **„Nie znalazłem Pythona”:** zainstaluj Pythona jeszcze raz i tym razem zaznacz „Add python.exe to PATH”.
-- **„Port 8080 jest zajęty”:** tablica już działa w innym oknie. Zamknij je albo używaj tamtego.
-- **Uczeń nie może wejść:** sprawdź, czy okno tablicy jest otwarte i czy wysłałeś link z dzisiejszego uruchomienia.
-- **Zapomniałeś hasła:** w folderze tablicy otwórz PowerShell (Shift + prawy przycisk myszy na pustym miejscu w folderze, potem „Otwórz w terminalu”) i wpisz `.\start.bat reset-password twoj@email.pl`.
-
-Wszystkie twoje dane (konto, tablice, zdjęcia) są w folderze `data`. Żeby zrobić kopię zapasową, skopiuj go w bezpieczne miejsce, gdy tablica jest wyłączona.
-
----
-
-<details>
-<summary>Dla zaawansowanych</summary>
-
-**Polecenia** (w PowerShell w folderze tablicy: `.\start.bat …`; na Macu i Linuxie: `./start.sh …`):
-
-```
-list-users                      lista kont
-add-user email "Imię"           nowe konto (np. dla drugiego nauczyciela)
-reset-password email            nowe hasło
-delete-user email               usuwa konto razem z tablicami i zdjęciami
-cleanup                         usuwa nieużywane zdjęcia (robi się też samo co godzinę)
-serve [--tunnel] [--open]       sam serwer; --tunnel wystawia go przez Cloudflare, --open otwiera przeglądarkę
+# macOS / Linux
+./start.sh
 ```
 
-**Ustawienia** (zmienne środowiskowe):
+Pierwsze uruchomienie instaluje zależności i `cloudflared`, potem otwiera przeglądarkę. Pierwsza osoba zakłada konto, link dla ucznia jest pod **Udostępnij**.
 
-| zmienna | domyślnie | znaczenie |
+Tablica działa, dopóki otwarte jest okno serwera. Adres tunelu zmienia się przy każdym uruchomieniu.
+
+Na macOS `cloudflared` instalowany jest przez [Homebrew](https://brew.sh).
+
+## Obsługa
+
+| | |
+|---|---|
+| Rysik | rysowanie; podwójne stuknięcie palcem przełącza gumkę |
+| Palec / mysz | jeden palec rysuje, dwa przesuwają i przybliżają |
+| `T` | narzędzie tekstu, Enter zatwierdza |
+| `Ctrl+V` / drag & drop | wstawienie obrazu |
+| menu `⋯` | tło, eksport do PNG |
+
+## Polecenia
+
+```
+start.bat <polecenie>    # Windows
+./start.sh <polecenie>   # macOS / Linux
+```
+
+| Polecenie | Opis |
+|---|---|
+| `list-users` | lista kont |
+| `add-user <email> "<imię>"` | dodaje konto |
+| `reset-password <email>` | ustawia nowe hasło |
+| `delete-user <email>` | usuwa konto wraz z tablicami i plikami |
+| `cleanup` | usuwa nieużywane obrazy (uruchamiane też automatycznie co godzinę) |
+| `serve [--tunnel] [--open]` | sam serwer; `--tunnel` wystawia przez Cloudflare, `--open` otwiera przeglądarkę |
+
+## Konfiguracja
+
+| Zmienna | Domyślnie | Opis |
 |---|---|---|
 | `PORT` | `8080` | port |
 | `HOST` | `0.0.0.0` | adres nasłuchu |
-| `DATA_DIR` | `./data` | folder z danymi |
-| `REGISTRATION` | `first` | `first`: konto może założyć tylko pierwsza osoba, `open`: każdy, `closed`: nikt (konta dodajesz przez `add-user`) |
-| `TRUST_PROXY` | `auto` | czy wierzyć nagłówkom `X-Forwarded-*`: `auto` tylko od proxy na tym samym komputerze, `1` zawsze, `0` nigdy |
-| `UPLOAD_QUOTA_MB` | `500` | miejsce na zdjęcia dla jednego konta |
+| `DATA_DIR` | `./data` | katalog danych |
+| `REGISTRATION` | `first` | `first`: tylko pierwsze konto, `open`: każdy, `closed`: tylko przez `add-user` |
+| `TRUST_PROXY` | `auto` | zaufanie do `X-Forwarded-*`: `auto` tylko z localhost, `1` zawsze, `0` nigdy |
+| `UPLOAD_QUOTA_MB` | `500` | limit miejsca na obrazy na konto |
 | `MAX_ITEMS_PER_PAGE` | `20000` | limit elementów na stronie |
-| `MAX_PEERS_PER_BOARD` | `50` | ile osób naraz na tablicy |
+| `MAX_PEERS_PER_BOARD` | `50` | limit jednoczesnych użytkowników tablicy |
 
-**Docker z własną domeną:** wpisz domenę w `Caddyfile` i uruchom `docker compose up -d`. HTTPS ustawi się sam.
+## Docker
 
-**Jak to działa:** jeden plik Pythona (`server.py`, aiohttp + SQLite), bez zewnętrznych usług. Publiczny adres zapewnia darmowy tunel Cloudflare (`cloudflared`), który `start.bat` instaluje sam. Hasła są hashowane scryptem. Link do tablicy zawiera losowy klucz, a nowy link unieważnia stary.
+Ustaw domenę w `Caddyfile`, następnie:
 
-</details>
+```sh
+docker compose up -d
+```
+
+Caddy sam wystawi certyfikat HTTPS.
+
+## Dane
+
+Wszystko (konta, tablice, obrazy) jest w `DATA_DIR`. Kopię zapasową rób przy wyłączonym serwerze. Hasła są hashowane scryptem.
+
+## Problemy
+
+- **Port 8080 zajęty** — serwer już działa w innym oknie albo ustaw inny `PORT`.
+- **Python nie znaleziony** — dodaj go do `PATH` (w instalatorze: „Add python.exe to PATH”).
+- **Uczeń nie może wejść** — serwer musi działać, a link musi pochodzić z bieżącego uruchomienia.
 
 ## Licencja
 
-Kod: MIT ([LICENSE](LICENSE)). Czcionki: SIL Open Font License 1.1 ([static/fonts/OFL.txt](static/fonts/OFL.txt)).
+Kod: [MIT](LICENSE). Czcionki: [SIL OFL 1.1](static/fonts/OFL.txt).
