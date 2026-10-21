@@ -21,9 +21,12 @@ import json
 import os
 import re
 import secrets
+import shutil
+import socket
 import sqlite3
 import sys
 import time
+import webbrowser
 from pathlib import Path
 
 from aiohttp import WSMsgType, web
@@ -770,9 +773,94 @@ async def housekeeping(app):
     app["housekeeping"] = asyncio.create_task(loop())
 
 
-def make_app():
+# ---------- public link through a Cloudflare quick tunnel ----------
+def find_cloudflared():
+    candidates = [shutil.which("cloudflared")]
+    if os.name == "nt":  # a fresh winget install is not on this window's PATH yet
+        for base in (os.environ.get("ProgramFiles(x86)"), os.environ.get("ProgramFiles")):
+            if base:
+                candidates.append(os.path.join(base, "cloudflared", "cloudflared.exe"))
+        if os.environ.get("LOCALAPPDATA"):
+            candidates.append(os.path.join(os.environ["LOCALAPPDATA"], "Microsoft", "WinGet", "Links", "cloudflared.exe"))
+    return next((c for c in candidates if c and os.path.isfile(c)), None)
+
+
+def local_addresses():
+    """This computer's addresses in the home network, for devices on the same Wi-Fi."""
+    found = set()
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("10.255.255.255", 1))  # no packet is sent; only picks the outgoing interface
+        found.add(s.getsockname()[0])
+        s.close()
+    except OSError:
+        pass
+    return sorted(a for a in found if not a.startswith("127."))
+
+
+def banner(lines):
+    width = max(len(l) for l in lines) + 4
+    print("\n" + "=" * width)
+    for l in lines:
+        print("  " + l)
+    print("=" * width + "\n", flush=True)
+
+
+def tunnel_and_browser(open_browser, use_tunnel):
+    async def start(app):
+        local = f"http://localhost:{PORT}"
+        lan = [f"http://{a}:{PORT}" for a in local_addresses()]
+        exe = find_cloudflared() if use_tunnel else None
+        if not exe:
+            lines = [f"Tablica działa: {local}"] + [f"W tym samym Wi-Fi: {u}" for u in lan]
+            if use_tunnel:
+                lines += ["", "Brak programu cloudflared, więc uczniowie spoza domu nie wejdą.",
+                          "Zainstaluj go (Windows: winget install Cloudflare.cloudflared) i uruchom ponownie."]
+            lines += ["", "Nie zamykaj tego okna, dopóki trwa lekcja."]
+            banner(lines)
+            if open_browser:
+                webbrowser.open(local)
+            return
+        print("Łączę z internetem, to potrwa kilka sekund...", flush=True)
+        proc = await asyncio.create_subprocess_exec(exe, "tunnel", "--no-autoupdate", "--url", local,
+                                                    stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.PIPE)
+        app["tunnel_proc"] = proc
+
+        async def watch():
+            shown = False
+            async for raw in proc.stderr:
+                m = re.search(rb"https://[a-z0-9-]+\.trycloudflare\.com", raw)
+                if m and not shown:
+                    shown = True
+                    url = m.group(0).decode()
+                    banner([f"Twoja tablica w internecie: {url}", "",
+                            "Otwórz ten adres, zaloguj się i kliknij „Udostępnij” na tablicy,",
+                            "żeby skopiować link dla ucznia. Adres zmienia się przy każdym uruchomieniu.",
+                            "", "Nie zamykaj tego okna, dopóki trwa lekcja."])
+                    if open_browser:
+                        webbrowser.open(url)
+            if not shown:
+                banner([f"Nie udało się połączyć z internetem. Tablica działa tylko tu: {local}"])
+        app["tunnel_watch"] = asyncio.create_task(watch())
+
+    async def stop(app):
+        proc = app.get("tunnel_proc")
+        if proc and proc.returncode is None:
+            proc.terminate()
+            try:
+                await asyncio.wait_for(proc.wait(), 5)
+            except asyncio.TimeoutError:
+                proc.kill()
+    return start, stop
+
+
+def make_app(open_browser=False, use_tunnel=False):
     app = web.Application(middlewares=[security], client_max_size=MAX_IMAGE_BYTES + 1024)
     app.on_startup.append(housekeeping)
+    if open_browser or use_tunnel:
+        start, stop = tunnel_and_browser(open_browser, use_tunnel)
+        app.on_startup.append(start)
+        app.on_cleanup.append(stop)
     r = app.router
     r.add_get("/", page_index)
     r.add_get("/b/{bid}", page_board)
@@ -815,9 +903,16 @@ def find_user(email):
 
 
 def cli(argv):
+    for stream in (sys.stdout, sys.stderr):  # an old console code page must not crash the server on "ą" or "„"
+        try:
+            stream.reconfigure(errors="replace")
+        except (AttributeError, ValueError):
+            pass
     p = argparse.ArgumentParser(prog="server.py", description="Tablica: serwer i zarządzanie kontami.")
     sub = p.add_subparsers(dest="cmd")
-    sub.add_parser("serve", help="uruchom serwer (domyślnie)")
+    s = sub.add_parser("serve", help="uruchom serwer (domyślnie)")
+    s.add_argument("--tunnel", action="store_true", help="wystaw tablicę do internetu przez tunel Cloudflare")
+    s.add_argument("--open", action="store_true", help="otwórz tablicę w przeglądarce")
     sub.add_parser("list-users", help="pokaż konta")
     a = sub.add_parser("add-user", help="dodaj konto (działa też przy wyłączonej rejestracji)")
     a.add_argument("email"); a.add_argument("name")
@@ -830,8 +925,14 @@ def cli(argv):
 
     if args.cmd in (None, "serve"):
         mode = {"first": "tylko pierwsze konto", "open": "otwarta", "closed": "wyłączona"}.get(REGISTRATION, REGISTRATION)
-        print(f"Tablica działa: http://localhost:{PORT}  (rejestracja: {mode}, dane: {DATA_DIR})")
-        web.run_app(make_app(), host=HOST, port=PORT, print=None)
+        print(f"Uruchamiam tablicę (rejestracja: {mode}, dane: {DATA_DIR})", flush=True)
+        use_tunnel, open_browser = getattr(args, "tunnel", False), getattr(args, "open", False)
+        try:
+            web.run_app(make_app(open_browser, use_tunnel), host=HOST, port=PORT, print=None)
+        except OSError as e:
+            if getattr(e, "errno", None) in (98, 10048):
+                sys.exit(f"Port {PORT} jest zajęty. Tablica chyba już działa w innym oknie; zamknij je albo ustaw inny PORT.")
+            raise
     elif args.cmd == "list-users":
         rows = db.execute("SELECT u.email, u.name, u.created, (SELECT COUNT(*) FROM boards b WHERE b.owner_id = u.id) AS boards, "
                           "(SELECT COALESCE(SUM(size), 0) FROM uploads x WHERE x.owner_id = u.id) AS bytes FROM users u ORDER BY u.created").fetchall()
