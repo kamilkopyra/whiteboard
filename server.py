@@ -29,7 +29,8 @@ import time
 import webbrowser
 from pathlib import Path
 
-from aiohttp import WSMsgType, web
+from aiohttp import ClientSession, ClientTimeout, TCPConnector, WSMsgType, web
+from aiohttp.abc import AbstractResolver
 
 ROOT = Path(__file__).resolve().parent
 STATIC = ROOT / "static"
@@ -816,6 +817,44 @@ def already_running():
         return False
 
 
+class _PinnedResolver(AbstractResolver):
+    """Resolves one host to a fixed address, so a check does not go through (and poison) the OS DNS cache."""
+    def __init__(self, host, ip):
+        self.host, self.ip = host, ip
+
+    async def resolve(self, host, port=0, family=socket.AF_INET):
+        if host != self.host:
+            raise OSError(f"unexpected host {host}")
+        return [{"hostname": host, "host": self.ip, "port": port, "family": socket.AF_INET, "proto": 0, "flags": 0}]
+
+    async def close(self):
+        pass
+
+
+async def wait_until_reachable(url, timeout=120):
+    """Polls the tunnel until the board answers through it. Public DNS is asked over HTTPS and the
+    request is pinned to that address: an early lookup through Windows would cache 'no such address'
+    for minutes and the browser would keep showing an error."""
+    host = url.split("//", 1)[1]
+    deadline = time.monotonic() + timeout
+    async with ClientSession(timeout=ClientTimeout(total=5)) as doh:
+        while time.monotonic() < deadline:
+            try:
+                async with doh.get("https://cloudflare-dns.com/dns-query", params={"name": host, "type": "A"},
+                                   headers={"accept": "application/dns-json"}) as r:
+                    answers = [a["data"] for a in (await r.json(content_type=None)).get("Answer", []) if a.get("type") == 1]
+                if answers:
+                    conn = TCPConnector(resolver=_PinnedResolver(host, answers[0]))
+                    async with ClientSession(connector=conn, timeout=ClientTimeout(total=5)) as s:
+                        async with s.get(url + "/api/config") as r:
+                            if r.status == 200:
+                                return True
+            except Exception:
+                pass
+            await asyncio.sleep(1)
+    return False
+
+
 def banner(lines):
     width = max(len(l) for l in lines) + 4
     print("\n" + "=" * width)
@@ -825,6 +864,7 @@ def banner(lines):
 
 
 def tunnel_and_browser(open_browser, use_tunnel):
+    state = {}  # tunnel process and tasks (kept here, not on the app, which is frozen once started)
     async def start(app):
         local = f"http://localhost:{PORT}"
         lan = [f"http://{a}:{PORT}" for a in local_addresses()]
@@ -839,30 +879,37 @@ def tunnel_and_browser(open_browser, use_tunnel):
             if open_browser:
                 webbrowser.open(local)
             return
-        print("Łączę z internetem, to potrwa kilka sekund...", flush=True)
+        print("Łączę z internetem. Zwykle trwa to od kilkunastu sekund do minuty, przeglądarka otworzy się sama...", flush=True)
         proc = await asyncio.create_subprocess_exec(exe, "tunnel", "--no-autoupdate", "--url", local,
                                                     stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.PIPE)
-        app["tunnel_proc"] = proc
+        state["proc"] = proc
+
+        async def announce(url):
+            # cloudflared prints the address before it is reachable; opening it too early makes
+            # Windows remember "no such address" for minutes.
+            if not await wait_until_reachable(url):
+                print("Adres jeszcze nie odpowiada. Jeśli strona się nie otworzy, odczekaj chwilę i odśwież ją.", flush=True)
+            await asyncio.sleep(1)
+            banner([f"Twoja tablica w internecie: {url}", "",
+                    "Otwórz ten adres, zaloguj się i kliknij „Udostępnij” na tablicy,",
+                    "żeby skopiować link dla ucznia. Adres zmienia się przy każdym uruchomieniu.",
+                    "", "Nie zamykaj tego okna, dopóki trwa lekcja."])
+            if open_browser:
+                webbrowser.open(url)
 
         async def watch():
-            shown = False
-            async for raw in proc.stderr:
+            url = None
+            async for raw in proc.stderr:  # keep reading, or cloudflared stalls on a full pipe
                 m = re.search(rb"https://[a-z0-9-]+\.trycloudflare\.com", raw)
-                if m and not shown:
-                    shown = True
+                if m and not url:
                     url = m.group(0).decode()
-                    banner([f"Twoja tablica w internecie: {url}", "",
-                            "Otwórz ten adres, zaloguj się i kliknij „Udostępnij” na tablicy,",
-                            "żeby skopiować link dla ucznia. Adres zmienia się przy każdym uruchomieniu.",
-                            "", "Nie zamykaj tego okna, dopóki trwa lekcja."])
-                    if open_browser:
-                        webbrowser.open(url)
-            if not shown:
+                    state["announce"] = asyncio.create_task(announce(url))
+            if not url:
                 banner([f"Nie udało się połączyć z internetem. Tablica działa tylko tu: {local}"])
-        app["tunnel_watch"] = asyncio.create_task(watch())
+        state["watch"] = asyncio.create_task(watch())
 
     async def stop(app):
-        proc = app.get("tunnel_proc")
+        proc = state.get("proc")
         if proc and proc.returncode is None:
             proc.terminate()
             try:
