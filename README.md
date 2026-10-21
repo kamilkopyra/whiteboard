@@ -6,7 +6,7 @@ Wspólna tablica do korepetycji online. Ty i uczeń piszecie na niej jednocześn
 
 1. Zainstaluj Pythona ze strony [python.org/downloads](https://www.python.org/downloads/). W instalatorze **zaznacz „Add python.exe to PATH”**.
 2. Na tej stronie kliknij zielony przycisk **Code**, a potem **Download ZIP**. Rozpakuj pobrany plik.
-3. W rozpakowanym folderze kliknij dwa razy **`start.bat`**.
+3. W rozpakowanym folderze kliknij dwa razy **`start.bat`**. Jeśli wolisz PowerShell, wpisz `.\start.bat`, z kropką i ukośnikiem na początku.
    Jeśli Windows pokaże okno „System Windows ochronił komputer”, kliknij **Więcej informacji**, a potem **Uruchom mimo to**.
 4. Za pierwszym razem przygotowanie potrwa około minuty. Potem sama otworzy się przeglądarka z twoją tablicą. **Załóż konto.**
 5. Na tablicy kliknij **Udostępnij**, potem **Kopiuj**, i wyślij link uczniowi.
@@ -37,7 +37,7 @@ Wszystkie twoje dane (konto, tablice, zdjęcia) są w folderze `data`. Żeby zro
 <details>
 <summary>Dla zaawansowanych</summary>
 
-**Polecenia** (`start.bat …` na Windowsie, `./start.sh …` na Macu i Linuxie):
+**Polecenia** (w PowerShell w folderze tablicy: `.\start.bat …`; na Macu i Linuxie: `./start.sh …`):
 
 ```
 list-users                      lista kont

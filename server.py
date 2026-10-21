@@ -798,6 +798,24 @@ def local_addresses():
     return sorted(a for a in found if not a.startswith("127."))
 
 
+def port_taken():
+    try:
+        with socket.create_connection(("127.0.0.1", PORT), timeout=0.5):
+            return True
+    except OSError:
+        return False
+
+
+def already_running():
+    """True when what listens on PORT is this board (answers /api/config)."""
+    import urllib.request
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{PORT}/api/config", timeout=2) as r:
+            return "registration" in json.loads(r.read())
+    except (OSError, ValueError):
+        return False
+
+
 def banner(lines):
     width = max(len(l) for l in lines) + 4
     print("\n" + "=" * width)
@@ -925,8 +943,18 @@ def cli(argv):
 
     if args.cmd in (None, "serve"):
         mode = {"first": "tylko pierwsze konto", "open": "otwarta", "closed": "wyłączona"}.get(REGISTRATION, REGISTRATION)
-        print(f"Uruchamiam tablicę (rejestracja: {mode}, dane: {DATA_DIR})", flush=True)
         use_tunnel, open_browser = getattr(args, "tunnel", False), getattr(args, "open", False)
+        if port_taken():
+            # Check before starting a tunnel, so a second start does not open a link to nothing.
+            if already_running():
+                banner(["Tablica już działa w innym oknie.",
+                        "Używaj tamtego okna: jest w nim adres dla uczniów.",
+                        "Jeśli chcesz uruchomić ją od nowa, zamknij tamto okno i uruchom start.bat ponownie."])
+                if open_browser:
+                    webbrowser.open(f"http://localhost:{PORT}")
+                return
+            sys.exit(f"Port {PORT} zajmuje inny program. Zamknij go albo uruchom tablicę na innym porcie (zmienna PORT).")
+        print(f"Uruchamiam tablicę (rejestracja: {mode}, dane: {DATA_DIR})", flush=True)
         try:
             web.run_app(make_app(open_browser, use_tunnel), host=HOST, port=PORT, print=None)
         except OSError as e:
